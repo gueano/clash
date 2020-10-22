@@ -41,7 +41,7 @@ func NewHttpProxy(addr string) (*HttpListener, error) {
 				}
 				continue
 			}
-			go handleConn(c, hl.cache)
+			go HandleConn(c, hl.cache)
 		}
 	}()
 
@@ -60,6 +60,7 @@ func (l *HttpListener) Address() string {
 func canActivate(loginStr string, authenticator auth.Authenticator, cache *cache.Cache) (ret bool) {
 	if result := cache.Get(loginStr); result != nil {
 		ret = result.(bool)
+		return
 	}
 	loginData, err := base64.StdEncoding.DecodeString(loginStr)
 	login := strings.Split(string(loginData), ":")
@@ -69,7 +70,7 @@ func canActivate(loginStr string, authenticator auth.Authenticator, cache *cache
 	return
 }
 
-func handleConn(conn net.Conn, cache *cache.Cache) {
+func HandleConn(conn net.Conn, cache *cache.Cache) {
 	br := bufio.NewReader(conn)
 	request, err := http.ReadRequest(br)
 	if err != nil || request.URL.Host == "" {
@@ -80,7 +81,7 @@ func handleConn(conn net.Conn, cache *cache.Cache) {
 	authenticator := authStore.Authenticator()
 	if authenticator != nil {
 		if authStrings := strings.Split(request.Header.Get("Proxy-Authorization"), " "); len(authStrings) != 2 {
-			_, err = conn.Write([]byte("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic\r\n\r\n"))
+			conn.Write([]byte("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic\r\n\r\n"))
 			conn.Close()
 			return
 		} else if !canActivate(authStrings[1], authenticator, cache) {

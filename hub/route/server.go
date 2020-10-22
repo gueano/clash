@@ -36,7 +36,7 @@ type Traffic struct {
 }
 
 func SetUIPath(path string) {
-	uiPath = path
+	uiPath = C.Path.Resolve(path)
 }
 
 func Start(addr string, secret string) {
@@ -110,9 +110,9 @@ func authentication(next http.Handler) http.Handler {
 		header := r.Header.Get("Authorization")
 		text := strings.SplitN(header, " ", 2)
 
-		hasUnvalidHeader := text[0] != "Bearer"
-		hasUnvalidSecret := len(text) == 2 && text[1] != serverSecret
-		if hasUnvalidHeader || hasUnvalidSecret {
+		hasInvalidHeader := text[0] != "Bearer"
+		hasInvalidSecret := len(text) != 2 || text[1] != serverSecret
+		if hasInvalidHeader || hasInvalidSecret {
 			render.Status(r, http.StatusUnauthorized)
 			render.JSON(w, r, ErrUnauthorized)
 			return
@@ -142,6 +142,7 @@ func traffic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tick := time.NewTicker(time.Second)
+	defer tick.Stop()
 	t := T.DefaultManager
 	buf := &bytes.Buffer{}
 	var err error
